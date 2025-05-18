@@ -2,6 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>AR CV</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
@@ -23,6 +24,18 @@
         font-size: 1.25em;
         color: white;
       }
+      #info-box {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 10px;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+        border-radius: 5px;
+        z-index: 999;
+      }
     </style>
   </head>
   <body style="margin: 0; overflow: hidden;">
@@ -30,17 +43,42 @@
       <div>Kamera QR kodu arıyor. Lütfen QR kodunu kameraya gösterin...</div>
     </div>
     
+    <div id="info-box">Durum: Marker bekleniyor...</div>
+    
     <a-scene 
       embedded 
-      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
+      vr-mode-ui="enabled: false"
+      renderer="logarithmicDepthBuffer: true; precision: medium;" 
+      arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; patternRatio: 0.75;">
       <a-assets>
         <a-asset-item id="avatar" src="avatar.glb"></a-asset-item>
         <audio id="cv-audio" src="cv_ses.mp3" preload="auto"></audio>
-        <img id="frame-marker" src="frame.png">
       </a-assets>
 
-      <!-- Özel marker kullanımı -->
-      <a-marker type="pattern" url="frame.png">
+      <!-- Seçenek 1: Barcode marker (QR kodu) -->
+      <a-marker id="barcode-marker" type="barcode" value="1">
+        <a-entity 
+          gltf-model="#avatar" 
+          scale="0.5 0.5 0.5" 
+          position="0 0 0"
+          rotation="0 0 0"
+          animation-mixer>
+        </a-entity>
+      </a-marker>
+      
+      <!-- Seçenek 2: Custom pattern marker -->
+      <a-marker id="pattern-marker" type="pattern" url="frame.png">
+        <a-entity 
+          gltf-model="#avatar" 
+          scale="0.5 0.5 0.5" 
+          position="0 0 0"
+          rotation="0 0 0"
+          animation-mixer>
+        </a-entity>
+      </a-marker>
+      
+      <!-- Seçenek 3: Hazır pattern -->
+      <a-marker id="hiro-marker" preset="hiro">
         <a-entity 
           gltf-model="#avatar" 
           scale="0.5 0.5 0.5" 
@@ -62,20 +100,45 @@
             loader.style.display = "none";
           }
         }, 3000);
+        
+        // Debug için konsol mesajları
+        console.log("AR.js uygulaması başlatıldı");
       };
 
+      // İnfo box güncelleme
+      const infoBox = document.getElementById('info-box');
+      
       // Marker bulunduğunda ses çal
-      document.querySelector('a-marker').addEventListener('markerFound', () => {
-        var audio = document.getElementById('cv-audio');
-        // Sesi en baştan çal
-        audio.currentTime = 0;
-        audio.play();
+      const markers = document.querySelectorAll('a-marker');
+      markers.forEach((marker) => {
+        marker.addEventListener('markerFound', () => {
+          console.log("Marker bulundu: " + marker.id);
+          infoBox.textContent = "Durum: Marker bulundu! (" + marker.id + ")";
+          
+          var audio = document.getElementById('cv-audio');
+          // Sesi en baştan çal
+          audio.currentTime = 0;
+          audio.play().catch(e => {
+            console.error("Ses oynatma hatası:", e);
+            infoBox.textContent = "Hata: Ses oynatılamadı. Lütfen ekrana dokunun.";
+          });
+        });
+        
+        marker.addEventListener('markerLost', () => {
+          console.log("Marker kaybedildi: " + marker.id);
+          infoBox.textContent = "Durum: Marker kaybedildi. Tekrar deneyin.";
+          
+          var audio = document.getElementById('cv-audio');
+          audio.pause();
+        });
       });
-
-      // Marker kaybedildiğinde sesi duraklat
-      document.querySelector('a-marker').addEventListener('markerLost', () => {
+      
+      // Mobil cihazlarda ses için kullanıcı etkileşimi gerekli
+      document.addEventListener('click', () => {
         var audio = document.getElementById('cv-audio');
-        audio.pause();
+        if (audio.paused) {
+          audio.play().catch(e => console.error("Ses oynatma hatası:", e));
+        }
       });
     </script>
   </body>
