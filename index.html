@@ -4,8 +4,63 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>AR CV</title>
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <script>
+      // Sayfa yükleme göstergesi
+      AFRAME.registerComponent('loading-screen', {
+        init: function () {
+          // Yükleme ekranını göster
+          document.querySelector('.arjs-loader').style.display = 'flex';
+          
+          // Bileşen yüklendiğinde
+          this.el.addEventListener('loaded', () => {
+            console.log('AR scene loaded');
+            
+            // 3 saniye sonra yükleme ekranını gizle
+            setTimeout(() => {
+              document.querySelector('.arjs-loader').style.display = 'none';
+            }, 3000);
+          });
+        }
+      });
+      
+      // Marker bileşeni
+      AFRAME.registerComponent('marker-handler', {
+        init: function () {
+          const marker = this.el;
+          const markerId = marker.id;
+          const infoBox = document.getElementById('info-box');
+          const audioEl = document.getElementById('cv-audio');
+          
+          marker.addEventListener('markerFound', () => {
+            console.log("Marker bulundu: " + markerId);
+            infoBox.textContent = "Durum: Marker bulundu! (" + markerId + ")";
+            infoBox.style.backgroundColor = "rgba(0, 255, 0, 0.7)";
+            
+            // Sesi çal
+            if (audioEl) {
+              audioEl.currentTime = 0;
+              audioEl.play().catch(e => {
+                console.error("Ses oynatma hatası:", e);
+                infoBox.textContent = "Ses hatası: Ekrana dokunun!";
+              });
+            }
+          });
+          
+          marker.addEventListener('markerLost', () => {
+            console.log("Marker kaybedildi: " + markerId);
+            infoBox.textContent = "Durum: Marker kaybedildi";
+            infoBox.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+            
+            // Sesi duraklat
+            if (audioEl) {
+              audioEl.pause();
+            }
+          });
+        }
+      });
+    </script>
     <style>
       .arjs-loader {
         height: 100%;
@@ -23,6 +78,7 @@
         text-align: center;
         font-size: 1.25em;
         color: white;
+        max-width: 80%;
       }
       #info-box {
         position: absolute;
@@ -36,27 +92,59 @@
         border-radius: 5px;
         z-index: 999;
       }
+      #marker-help {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 10px;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        border-radius: 5px;
+        z-index: 999;
+        max-width: 150px;
+        text-align: center;
+      }
+      #marker-help img {
+        width: 100%;
+        margin-top: 10px;
+      }
     </style>
   </head>
   <body style="margin: 0; overflow: hidden;">
     <div class="arjs-loader">
-      <div>Kamera QR kodu arıyor. Lütfen QR kodunu kameraya gösterin...</div>
+      <div>
+        <h3>AR CV Yükleniyor</h3>
+        <p>Kamera QR kodu veya marker arıyor. Lütfen bekleyin ve izin istendiğinde kamera erişimine izin verin.</p>
+        <p>İşlem birkaç saniye sürebilir.</p>
+      </div>
     </div>
     
-    <div id="info-box">Durum: Marker bekleniyor...</div>
+    <div id="info-box">Durum: Başlatılıyor...</div>
+    
+    <div id="marker-help">
+      <div>Alternatif olarak HIRO marker'ı deneyin:</div>
+      <img src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/HIRO.jpg" alt="HIRO Marker">
+    </div>
     
     <a-scene 
+      loading-screen
       embedded 
       vr-mode-ui="enabled: false"
-      renderer="logarithmicDepthBuffer: true; precision: medium;" 
-      arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3; patternRatio: 0.75;">
+      renderer="logarithmicDepthBuffer: true; antialias: true; precision: mediump;" 
+      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3_HAMMING63; cameraParametersUrl: https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/camera_para.dat;">
       <a-assets>
         <a-asset-item id="avatar" src="avatar.glb"></a-asset-item>
         <audio id="cv-audio" src="cv_ses.mp3" preload="auto"></audio>
       </a-assets>
 
-      <!-- Seçenek 1: Barcode marker (QR kodu) -->
-      <a-marker id="barcode-marker" type="barcode" value="1">
+      <!-- Seçenek 1: QR kod için barcode marker -->
+      <a-marker 
+        id="barcode-marker" 
+        marker-handler
+        type="barcode" 
+        value="1">
         <a-entity 
           gltf-model="#avatar" 
           scale="0.5 0.5 0.5" 
@@ -66,8 +154,11 @@
         </a-entity>
       </a-marker>
       
-      <!-- Seçenek 2: Custom pattern marker -->
-      <a-marker id="pattern-marker" type="pattern" url="frame.png">
+      <!-- Seçenek 2: HIRO preset marker (test için) -->
+      <a-marker 
+        id="hiro-marker" 
+        marker-handler
+        preset="hiro">
         <a-entity 
           gltf-model="#avatar" 
           scale="0.5 0.5 0.5" 
@@ -77,8 +168,26 @@
         </a-entity>
       </a-marker>
       
-      <!-- Seçenek 3: Hazır pattern -->
-      <a-marker id="hiro-marker" preset="hiro">
+      <!-- Seçenek 3: KANJI preset marker (test için) -->
+      <a-marker 
+        id="kanji-marker" 
+        marker-handler
+        preset="kanji">
+        <a-entity 
+          gltf-model="#avatar" 
+          scale="0.5 0.5 0.5" 
+          position="0 0 0"
+          rotation="0 0 0"
+          animation-mixer>
+        </a-entity>
+      </a-marker>
+      
+      <!-- Seçenek 4: Pattern marker (frame.png) -->
+      <a-marker 
+        id="pattern-marker" 
+        marker-handler
+        type="pattern" 
+        url="frame.png">
         <a-entity 
           gltf-model="#avatar" 
           scale="0.5 0.5 0.5" 
@@ -92,54 +201,32 @@
     </a-scene>
 
     <script>
-      // Sayfa yüklendiğinde yükleme ekranını kaldır
+      // Sayfa yüklendiğinde
       window.onload = function() {
-        setTimeout(function() {
-          var loader = document.querySelector(".arjs-loader");
-          if (loader) {
-            loader.style.display = "none";
-          }
-        }, 3000);
+        console.log("AR uygulaması başlatıldı");
         
-        // Debug için konsol mesajları
-        console.log("AR.js uygulaması başlatıldı");
+        // İnfo box güncelleme
+        const infoBox = document.getElementById('info-box');
+        infoBox.textContent = "Durum: Kamerayı QR koda doğrultun";
       };
-
-      // İnfo box güncelleme
-      const infoBox = document.getElementById('info-box');
-      
-      // Marker bulunduğunda ses çal
-      const markers = document.querySelectorAll('a-marker');
-      markers.forEach((marker) => {
-        marker.addEventListener('markerFound', () => {
-          console.log("Marker bulundu: " + marker.id);
-          infoBox.textContent = "Durum: Marker bulundu! (" + marker.id + ")";
-          
-          var audio = document.getElementById('cv-audio');
-          // Sesi en baştan çal
-          audio.currentTime = 0;
-          audio.play().catch(e => {
-            console.error("Ses oynatma hatası:", e);
-            infoBox.textContent = "Hata: Ses oynatılamadı. Lütfen ekrana dokunun.";
-          });
-        });
-        
-        marker.addEventListener('markerLost', () => {
-          console.log("Marker kaybedildi: " + marker.id);
-          infoBox.textContent = "Durum: Marker kaybedildi. Tekrar deneyin.";
-          
-          var audio = document.getElementById('cv-audio');
-          audio.pause();
-        });
-      });
       
       // Mobil cihazlarda ses için kullanıcı etkileşimi gerekli
       document.addEventListener('click', () => {
         var audio = document.getElementById('cv-audio');
-        if (audio.paused) {
+        if (audio && audio.paused) {
           audio.play().catch(e => console.error("Ses oynatma hatası:", e));
         }
       });
+      
+      // Hata ayıklama
+      window.onerror = function(message, source, lineno, colno, error) {
+        console.error("Hata yakalandı:", message);
+        const infoBox = document.getElementById('info-box');
+        if (infoBox) {
+          infoBox.textContent = "Hata: " + message;
+          infoBox.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
+        }
+      };
     </script>
   </body>
 </html>
