@@ -25,6 +25,27 @@
         }
       });
       
+      // 3D Model yükleme kontrolü
+      AFRAME.registerComponent('model-handler', {
+        init: function () {
+          const el = this.el;
+          const infoBox = document.getElementById('info-box');
+          
+          // Model yüklendiğinde
+          el.addEventListener('model-loaded', () => {
+            console.log('3D model yüklendi');
+            infoBox.textContent = "Model yüklendi, marker bekleniyor...";
+          });
+          
+          // Model yüklenemediğinde
+          el.addEventListener('model-error', (error) => {
+            console.error('3D model yüklenme hatası', error);
+            infoBox.textContent = "Model yüklenme hatası!";
+            infoBox.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
+          });
+        }
+      });
+      
       // Marker bileşeni
       AFRAME.registerComponent('marker-handler', {
         init: function () {
@@ -37,6 +58,15 @@
             console.log("Marker bulundu: " + markerId);
             infoBox.textContent = "Durum: Marker bulundu! (" + markerId + ")";
             infoBox.style.backgroundColor = "rgba(0, 255, 0, 0.7)";
+            
+            // Modeli görünür yap
+            const model = marker.querySelector('[gltf-model]');
+            if (model) {
+              model.setAttribute('visible', 'true');
+              console.log("Model görünür yapıldı");
+            } else {
+              console.error("Model elementi bulunamadı");
+            }
             
             // Sesi çal
             if (audioEl) {
@@ -110,6 +140,35 @@
         width: 100%;
         margin-top: 10px;
       }
+      #debug-panel {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background-color: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        z-index: 9998;
+        font-family: monospace;
+        font-size: 14px;
+        display: none;
+        max-width: 80%;
+        max-height: 80%;
+        overflow: auto;
+      }
+      #debug-toggle {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+        background-color: rgba(255, 255, 255, 0.7);
+        color: black;
+        border: none;
+        border-radius: 5px;
+        padding: 5px 10px;
+        cursor: pointer;
+        z-index: 1000;
+      }
     </style>
   </head>
   <body style="margin: 0; overflow: hidden;">
@@ -128,15 +187,20 @@
       <img src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/HIRO.jpg" alt="HIRO Marker">
     </div>
     
+    <div id="debug-panel"></div>
+    <button id="debug-toggle">Debug</button>
+    
     <a-scene 
       loading-screen
       embedded 
       vr-mode-ui="enabled: false"
       renderer="logarithmicDepthBuffer: true; antialias: true; precision: mediump;" 
       arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3_HAMMING63; cameraParametersUrl: https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/camera_para.dat;">
+      
       <a-assets>
-        <a-asset-item id="avatar" src="avatar.glb"></a-asset-item>
-        <audio id="cv-audio" src="cv_ses.mp3" preload="auto"></audio>
+        <!-- Modelimizi tekrar kontrolle preload yapalım -->
+        <a-asset-item id="avatar" src="avatar.glb" response-type="arraybuffer" crossorigin="anonymous"></a-asset-item>
+        <audio id="cv-audio" src="cv_ses.mp3" preload="auto" crossorigin="anonymous"></audio>
       </a-assets>
 
       <!-- Seçenek 1: QR kod için barcode marker -->
@@ -146,11 +210,13 @@
         type="barcode" 
         value="1">
         <a-entity 
+          model-handler
           gltf-model="#avatar" 
           scale="0.5 0.5 0.5" 
-          position="0 0 0"
-          rotation="0 0 0"
-          animation-mixer>
+          position="0 0.5 0" 
+          rotation="-90 0 0"
+          visible="false"
+          animation-mixer="loop: repeat">
         </a-entity>
       </a-marker>
       
@@ -160,11 +226,13 @@
         marker-handler
         preset="hiro">
         <a-entity 
+          model-handler
           gltf-model="#avatar" 
           scale="0.5 0.5 0.5" 
-          position="0 0 0"
-          rotation="0 0 0"
-          animation-mixer>
+          position="0 0.5 0" 
+          rotation="-90 0 0"
+          visible="false"
+          animation-mixer="loop: repeat">
         </a-entity>
       </a-marker>
       
@@ -174,11 +242,13 @@
         marker-handler
         preset="kanji">
         <a-entity 
+          model-handler
           gltf-model="#avatar" 
           scale="0.5 0.5 0.5" 
-          position="0 0 0"
-          rotation="0 0 0"
-          animation-mixer>
+          position="0 0.5 0" 
+          rotation="-90 0 0"
+          visible="false"
+          animation-mixer="loop: repeat">
         </a-entity>
       </a-marker>
       
@@ -189,12 +259,22 @@
         type="pattern" 
         url="frame.png">
         <a-entity 
+          model-handler
           gltf-model="#avatar" 
           scale="0.5 0.5 0.5" 
-          position="0 0 0"
-          rotation="0 0 0"
-          animation-mixer>
+          position="0 0.5 0" 
+          rotation="-90 0 0"
+          visible="false"
+          animation-mixer="loop: repeat">
         </a-entity>
+      </a-marker>
+
+      <!-- Fallback 3D obje (test için) -->
+      <a-marker 
+        id="test-marker" 
+        marker-handler
+        preset="hiro">
+        <a-box position="0 0.5 0" color="red" scale="0.5 0.5 0.5" visible="false"></a-box>
       </a-marker>
 
       <a-entity camera></a-entity>
@@ -208,6 +288,65 @@
         // İnfo box güncelleme
         const infoBox = document.getElementById('info-box');
         infoBox.textContent = "Durum: Kamerayı QR koda doğrultun";
+        
+        // Debug paneli
+        const debugPanel = document.getElementById('debug-panel');
+        const debugToggle = document.getElementById('debug-toggle');
+        
+        debugToggle.addEventListener('click', () => {
+          if (debugPanel.style.display === 'none') {
+            // 3D model bilgilerini göster
+            checkModelStatus();
+            debugPanel.style.display = 'block';
+          } else {
+            debugPanel.style.display = 'none';
+          }
+        });
+        
+        // Modeli kontrol fonksiyonu
+        function checkModelStatus() {
+          const modelEl = document.getElementById('avatar');
+          const debugPanel = document.getElementById('debug-panel');
+          
+          if (!modelEl) {
+            debugPanel.innerHTML = "Model elemanı bulunamadı!";
+            return;
+          }
+          
+          // Model durumunu göster
+          let debugInfo = "";
+          debugInfo += "<h3>3D Model Durumu:</h3>";
+          debugInfo += "<p>Model URL: " + modelEl.getAttribute('src') + "</p>";
+          
+          // Dosya kontrolü
+          fetch(modelEl.getAttribute('src'))
+            .then(response => {
+              debugInfo += "<p>Dosya durumu: " + (response.ok ? "Erişilebilir ✅" : "Erişilemez ❌") + "</p>";
+              debugInfo += "<p>Dosya boyutu: " + (response.headers.get('content-length') || "bilinmiyor") + " bytes</p>";
+              debugPanel.innerHTML = debugInfo;
+              
+              if (!response.ok) {
+                infoBox.textContent = "Uyarı: Avatar dosyası bulunamadı!";
+                infoBox.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
+              }
+            })
+            .catch(error => {
+              debugInfo += "<p>Dosya hatası: " + error + " ❌</p>";
+              debugPanel.innerHTML = debugInfo;
+            });
+          
+          // Alternatifleri göster
+          if (!modelEl || !modelEl.getAttribute('src')) {
+            debugInfo += "<h3>Alternatif Çözümler:</h3>";
+            debugInfo += "<p>1. avatar.glb dosya adının doğru olduğunu kontrol edin</p>";
+            debugInfo += "<p>2. Dosya GitHub'a düzgün yüklendi mi?</p>";
+            debugInfo += "<p>3. Basit bir kutu kullanmak için kodu güncelleyelim</p>";
+            debugPanel.innerHTML = debugInfo;
+          }
+        }
+        
+        // İlk yüklemede kontrol et
+        setTimeout(checkModelStatus, 3000);
       };
       
       // Mobil cihazlarda ses için kullanıcı etkileşimi gerekli
@@ -222,9 +361,16 @@
       window.onerror = function(message, source, lineno, colno, error) {
         console.error("Hata yakalandı:", message);
         const infoBox = document.getElementById('info-box');
+        const debugPanel = document.getElementById('debug-panel');
+        
         if (infoBox) {
           infoBox.textContent = "Hata: " + message;
           infoBox.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
+        }
+        
+        if (debugPanel) {
+          debugPanel.style.display = 'block';
+          debugPanel.innerHTML += "<p>HATA: " + message + "</p>";
         }
       };
     </script>
