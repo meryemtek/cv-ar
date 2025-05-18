@@ -4,25 +4,78 @@
     <meta charset="utf-8" />
     <title>AR CV</title>
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
-    <script src="https://cdn.rawgit.com/jeromeetienne/ar.js/1.7.2/aframe/build/aframe-ar.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <style>
+      .arjs-loader {
+        height: 100%;
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        background-color: rgba(0, 0, 0, 0.8);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .arjs-loader div {
+        text-align: center;
+        font-size: 1.25em;
+        color: white;
+      }
+    </style>
   </head>
   <body style="margin: 0; overflow: hidden;">
-    <a-scene embedded arjs>
+    <div class="arjs-loader">
+      <div>Kamera QR kodu arıyor. Lütfen QR kodunu kameraya gösterin...</div>
+    </div>
+    
+    <a-scene 
+      embedded 
+      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;">
       <a-assets>
         <a-asset-item id="avatar" src="avatar.glb"></a-asset-item>
         <audio id="cv-audio" src="cv_ses.mp3" preload="auto"></audio>
+        <img id="frame-marker" src="frame.png">
       </a-assets>
 
-      <a-marker preset="hiro">
-        <a-entity gltf-model="#avatar" scale="0.5 0.5 0.5" position="0 0 0"></a-entity>
+      <!-- Özel marker kullanımı -->
+      <a-marker type="pattern" url="frame.png">
+        <a-entity 
+          gltf-model="#avatar" 
+          scale="0.5 0.5 0.5" 
+          position="0 0 0"
+          rotation="0 0 0"
+          animation-mixer>
+        </a-entity>
       </a-marker>
 
       <a-entity camera></a-entity>
     </a-scene>
 
     <script>
+      // Sayfa yüklendiğinde yükleme ekranını kaldır
+      window.onload = function() {
+        setTimeout(function() {
+          var loader = document.querySelector(".arjs-loader");
+          if (loader) {
+            loader.style.display = "none";
+          }
+        }, 3000);
+      };
+
+      // Marker bulunduğunda ses çal
       document.querySelector('a-marker').addEventListener('markerFound', () => {
-        document.getElementById('cv-audio').play();
+        var audio = document.getElementById('cv-audio');
+        // Sesi en baştan çal
+        audio.currentTime = 0;
+        audio.play();
+      });
+
+      // Marker kaybedildiğinde sesi duraklat
+      document.querySelector('a-marker').addEventListener('markerLost', () => {
+        var audio = document.getElementById('cv-audio');
+        audio.pause();
       });
     </script>
   </body>
