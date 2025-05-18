@@ -7,6 +7,9 @@
     <script src="https://aframe.io/releases/1.4.1/aframe.min.js"></script>
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <script>
+      // Marker durumu
+      let markerVisible = false;
+      
       // Sayfa yükleme göstergesi
       AFRAME.registerComponent('loading-screen', {
         init: function () {
@@ -25,27 +28,6 @@
         }
       });
       
-      // 3D Model yükleme kontrolü
-      AFRAME.registerComponent('model-handler', {
-        init: function () {
-          const el = this.el;
-          const infoBox = document.getElementById('info-box');
-          
-          // Model yüklendiğinde
-          el.addEventListener('model-loaded', () => {
-            console.log('3D model yüklendi');
-            infoBox.textContent = "Model yüklendi, marker bekleniyor...";
-          });
-          
-          // Model yüklenemediğinde
-          el.addEventListener('model-error', (error) => {
-            console.error('3D model yüklenme hatası', error);
-            infoBox.textContent = "Model yüklenme hatası!";
-            infoBox.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
-          });
-        }
-      });
-      
       // Marker bileşeni
       AFRAME.registerComponent('marker-handler', {
         init: function () {
@@ -59,8 +41,11 @@
             infoBox.textContent = "Durum: Marker bulundu! (" + markerId + ")";
             infoBox.style.backgroundColor = "rgba(0, 255, 0, 0.7)";
             
-            // Modeli görünür yap
-            const model = marker.querySelector('[gltf-model]');
+            // Global marker durumunu güncelle
+            markerVisible = true;
+            
+            // Model'i görünür yap
+            const model = marker.querySelector('a-entity, a-box');
             if (model) {
               model.setAttribute('visible', 'true');
               console.log("Model görünür yapıldı");
@@ -73,7 +58,7 @@
               audioEl.currentTime = 0;
               audioEl.play().catch(e => {
                 console.error("Ses oynatma hatası:", e);
-                infoBox.textContent = "Ses hatası: Ekrana dokunun!";
+                infoBox.textContent = "Ses hatası! Marker görüldü ancak ses oynatılamadı.";
               });
             }
           });
@@ -82,6 +67,15 @@
             console.log("Marker kaybedildi: " + markerId);
             infoBox.textContent = "Durum: Marker kaybedildi";
             infoBox.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+            
+            // Global marker durumunu güncelle
+            markerVisible = false;
+            
+            // Model'i gizle
+            const model = marker.querySelector('a-entity, a-box');
+            if (model) {
+              model.setAttribute('visible', 'false');
+            }
             
             // Sesi duraklat
             if (audioEl) {
@@ -183,7 +177,7 @@
     <div id="info-box">Durum: Başlatılıyor...</div>
     
     <div id="marker-help">
-      <div>Alternatif olarak HIRO marker'ı deneyin:</div>
+      <div>HIRO marker'ı deneyin:</div>
       <img src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/HIRO.jpg" alt="HIRO Marker">
     </div>
     
@@ -198,83 +192,73 @@
       arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3_HAMMING63; cameraParametersUrl: https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/data/camera_para.dat;">
       
       <a-assets>
-        <!-- Modelimizi tekrar kontrolle preload yapalım -->
         <a-asset-item id="avatar" src="avatar.glb" response-type="arraybuffer" crossorigin="anonymous"></a-asset-item>
         <audio id="cv-audio" src="cv_ses.mp3" preload="auto" crossorigin="anonymous"></audio>
       </a-assets>
 
-      <!-- Seçenek 1: QR kod için barcode marker -->
+      <!-- Seçenek 1: HIRO marker ile basit mavi kutu -->
+      <a-marker 
+        id="hiro-marker" 
+        marker-handler
+        preset="hiro">
+        <a-box 
+          position="0 0.5 0" 
+          scale="1 1 1" 
+          color="blue" 
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear"
+          visible="false">
+          <a-text 
+            value="MERVE" 
+            position="0 1.25 0" 
+            color="white" 
+            align="center" 
+            width="4">
+          </a-text>
+        </a-box>
+      </a-marker>
+
+      <!-- Seçenek 2: QR/Barcode ile basit yeşil kutu -->
       <a-marker 
         id="barcode-marker" 
         marker-handler
         type="barcode" 
         value="1">
-        <a-entity 
-          model-handler
-          gltf-model="#avatar" 
-          scale="0.5 0.5 0.5" 
+        <a-box 
           position="0 0.5 0" 
-          rotation="-90 0 0"
-          visible="false"
-          animation-mixer="loop: repeat">
-        </a-entity>
+          scale="1 1 1" 
+          color="green" 
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear"
+          visible="false">
+          <a-text 
+            value="MERVE" 
+            position="0 1.25 0" 
+            color="white" 
+            align="center" 
+            width="4">
+          </a-text>
+        </a-box>
       </a-marker>
       
-      <!-- Seçenek 2: HIRO preset marker (test için) -->
-      <a-marker 
-        id="hiro-marker" 
-        marker-handler
-        preset="hiro">
-        <a-entity 
-          model-handler
-          gltf-model="#avatar" 
-          scale="0.5 0.5 0.5" 
-          position="0 0.5 0" 
-          rotation="-90 0 0"
-          visible="false"
-          animation-mixer="loop: repeat">
-        </a-entity>
-      </a-marker>
-      
-      <!-- Seçenek 3: KANJI preset marker (test için) -->
-      <a-marker 
-        id="kanji-marker" 
-        marker-handler
-        preset="kanji">
-        <a-entity 
-          model-handler
-          gltf-model="#avatar" 
-          scale="0.5 0.5 0.5" 
-          position="0 0.5 0" 
-          rotation="-90 0 0"
-          visible="false"
-          animation-mixer="loop: repeat">
-        </a-entity>
-      </a-marker>
-      
-      <!-- Seçenek 4: Pattern marker (frame.png) -->
+      <!-- Seçenek 3: Pattern marker ile basit turuncu kutu -->
       <a-marker 
         id="pattern-marker" 
         marker-handler
         type="pattern" 
         url="frame.png">
-        <a-entity 
-          model-handler
-          gltf-model="#avatar" 
-          scale="0.5 0.5 0.5" 
+        <a-box 
           position="0 0.5 0" 
-          rotation="-90 0 0"
-          visible="false"
-          animation-mixer="loop: repeat">
-        </a-entity>
-      </a-marker>
-
-      <!-- Fallback 3D obje (test için) -->
-      <a-marker 
-        id="test-marker" 
-        marker-handler
-        preset="hiro">
-        <a-box position="0 0.5 0" color="red" scale="0.5 0.5 0.5" visible="false"></a-box>
+          scale="1 1 1" 
+          color="orange" 
+          animation="property: rotation; to: 0 360 0; loop: true; dur: 5000; easing: linear"
+          visible="false">
+          <a-text 
+            value="MERVE" 
+            position="0 1.25 0" 
+            color="white" 
+            align="center" 
+            width="4">
+          </a-text>
+        </a-box>
       </a-marker>
 
       <a-entity camera></a-entity>
@@ -287,7 +271,7 @@
         
         // İnfo box güncelleme
         const infoBox = document.getElementById('info-box');
-        infoBox.textContent = "Durum: Kamerayı QR koda doğrultun";
+        infoBox.textContent = "Durum: Kamerayı marker'a doğrultun";
         
         // Debug paneli
         const debugPanel = document.getElementById('debug-panel');
@@ -295,65 +279,63 @@
         
         debugToggle.addEventListener('click', () => {
           if (debugPanel.style.display === 'none') {
-            // 3D model bilgilerini göster
-            checkModelStatus();
+            // Dosya ve sistem bilgilerini göster
+            showDebugInfo();
             debugPanel.style.display = 'block';
           } else {
             debugPanel.style.display = 'none';
           }
         });
         
-        // Modeli kontrol fonksiyonu
-        function checkModelStatus() {
+        // Debug bilgilerini göster
+        function showDebugInfo() {
           const modelEl = document.getElementById('avatar');
-          const debugPanel = document.getElementById('debug-panel');
-          
-          if (!modelEl) {
-            debugPanel.innerHTML = "Model elemanı bulunamadı!";
-            return;
-          }
-          
-          // Model durumunu göster
+          const audioEl = document.getElementById('cv-audio');
           let debugInfo = "";
-          debugInfo += "<h3>3D Model Durumu:</h3>";
-          debugInfo += "<p>Model URL: " + modelEl.getAttribute('src') + "</p>";
           
-          // Dosya kontrolü
-          fetch(modelEl.getAttribute('src'))
-            .then(response => {
-              debugInfo += "<p>Dosya durumu: " + (response.ok ? "Erişilebilir ✅" : "Erişilemez ❌") + "</p>";
-              debugInfo += "<p>Dosya boyutu: " + (response.headers.get('content-length') || "bilinmiyor") + " bytes</p>";
-              debugPanel.innerHTML = debugInfo;
-              
-              if (!response.ok) {
-                infoBox.textContent = "Uyarı: Avatar dosyası bulunamadı!";
-                infoBox.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
-              }
-            })
-            .catch(error => {
-              debugInfo += "<p>Dosya hatası: " + error + " ❌</p>";
-              debugPanel.innerHTML = debugInfo;
-            });
-          
-          // Alternatifleri göster
-          if (!modelEl || !modelEl.getAttribute('src')) {
-            debugInfo += "<h3>Alternatif Çözümler:</h3>";
-            debugInfo += "<p>1. avatar.glb dosya adının doğru olduğunu kontrol edin</p>";
-            debugInfo += "<p>2. Dosya GitHub'a düzgün yüklendi mi?</p>";
-            debugInfo += "<p>3. Basit bir kutu kullanmak için kodu güncelleyelim</p>";
-            debugPanel.innerHTML = debugInfo;
+          // Avatar dosya durumu
+          debugInfo += "<h3>Dosya Durumu:</h3>";
+          if (modelEl) {
+            debugInfo += "<p>Avatar URL: " + modelEl.getAttribute('src') + "</p>";
+          } else {
+            debugInfo += "<p>Avatar elemanı bulunamadı</p>";
           }
+          
+          // Ses dosyası durumu
+          if (audioEl) {
+            debugInfo += "<p>Ses URL: " + audioEl.getAttribute('src') + "</p>";
+            debugInfo += "<p>Ses Durumu: " + (audioEl.paused ? "Duraklatıldı" : "Çalıyor") + "</p>";
+          } else {
+            debugInfo += "<p>Ses elemanı bulunamadı</p>";
+          }
+          
+          // Marker durumu
+          debugInfo += "<h3>Marker Durumu:</h3>";
+          debugInfo += "<p>Herhangi bir marker görünür mü: " + (markerVisible ? "EVET" : "HAYIR") + "</p>";
+          
+          // Sistem bilgileri
+          debugInfo += "<h3>Sistem Bilgileri:</h3>";
+          debugInfo += "<p>Tarayıcı: " + navigator.userAgent + "</p>";
+          debugInfo += "<p>Ekran Boyutu: " + window.innerWidth + "x" + window.innerHeight + "</p>";
+          
+          // Debug panelini güncelle
+          debugPanel.innerHTML = debugInfo;
         }
-        
-        // İlk yüklemede kontrol et
-        setTimeout(checkModelStatus, 3000);
       };
       
-      // Mobil cihazlarda ses için kullanıcı etkileşimi gerekli
+      // Mobil cihazlarda ses için kullanıcı etkileşimi gerekli - SADECE MARKER GÖRÜNÜR İSE
       document.addEventListener('click', () => {
-        var audio = document.getElementById('cv-audio');
-        if (audio && audio.paused) {
-          audio.play().catch(e => console.error("Ses oynatma hatası:", e));
+        // Sadece marker görünürse sesi çal
+        if (markerVisible) {
+          var audio = document.getElementById('cv-audio');
+          if (audio && audio.paused) {
+            audio.play().catch(e => console.error("Ses oynatma hatası:", e));
+          }
+        } else {
+          // Marker görünmüyorsa uyarı ver
+          const infoBox = document.getElementById('info-box');
+          infoBox.textContent = "Lütfen önce kamerayı marker'a doğrultun";
+          infoBox.style.backgroundColor = "rgba(255, 165, 0, 0.7)"; // Turuncu uyarı
         }
       });
       
